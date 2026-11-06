@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.example.data.local.UserSessionManager
 import com.example.i18n.AppLanguage
 import com.example.i18n.L10n
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -52,5 +53,43 @@ class ExampleRobolectricTest {
 
     assertEquals("এই গন্তব্যে এখনো কোনো শেয়ার করা ট্যুর প্ল্যান পাওয়া যায়নি।", L10n.noSharedToursFound(AppLanguage.BANGLA))
     assertEquals("No shared tour plans found for this destination.", L10n.noSharedToursFound(AppLanguage.ENGLISH))
+  }
+
+  @Test
+  fun `room database stores and retrieves saved trips via Flow`() = kotlinx.coroutines.runBlocking {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val db = androidx.room.Room.inMemoryDatabaseBuilder(
+      context,
+      com.example.data.local.room.TribeRoomDatabase::class.java
+    ).allowMainThreadQueries().build()
+
+    val dao = db.savedTripDao()
+
+    val testTrip = com.example.data.local.room.SavedTripEntity(
+      id = "test-trip-001",
+      title = "কক্সবাজার সমুদ্র ভ্রমণ",
+      destinationName = "কক্সবাজার",
+      startDate = "2026-12-01",
+      endDate = "2026-12-05",
+      status = "planning",
+      estimatedBudget = 15000.0,
+      actualExpenses = 5000.0,
+      memberCount = 4,
+      notes = "টেস্ট নোট"
+    )
+
+    dao.insertTrip(testTrip)
+
+    val list = dao.getAllSavedTrips().first()
+
+    assertEquals(1, list.size)
+    assertEquals("test-trip-001", list[0].id)
+    assertEquals("কক্সবাজার সমুদ্র ভ্রমণ", list[0].title)
+
+    dao.deleteTripById("test-trip-001")
+    val emptyList = dao.getAllSavedTrips().first()
+    assertEquals(0, emptyList.size)
+
+    db.close()
   }
 }

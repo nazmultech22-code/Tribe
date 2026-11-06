@@ -190,6 +190,15 @@ object L10n {
   fun notifications(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "নোটিফিকেশন" else "Notifications"
   fun noNotifications(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "কোনো নতুন নোটিফিকেশন নেই" else "No new notifications"
 
+  // Room Saved Trips
+  fun savedTripsTitle(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "সংরক্ষিত ট্রিপসমূহ (Room DB)" else "Saved Trips (Room DB)"
+  fun noSavedTrips(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "রুম ডাটাবেজে কোনো সংরক্ষিত ট্রিপ নেই।" else "No saved trips found in Room database."
+  fun addSavedTrip(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "+ নতুন ট্রিপ সেভ করুন" else "+ Save New Trip"
+  fun saveToRoom(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "লোকাল ডাটাবেজে সেভ করুন" else "Save to Local DB"
+  fun savedToRoomSuccess(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "ট্রিপটি সফলভাবে Room ডাটাবেজে সংরক্ষিত হয়েছে!" else "Trip saved to Room database!"
+  fun removedFromRoomSuccess(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "ট্রিপটি Room ডাটাবেজ থেকে মুছে ফেলা হয়েছে।" else "Trip removed from Room database."
+  fun roomDatabaseTag(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "অফলাইন Room স্টোরেজ" else "Offline Room Storage"
+
   // Common Actions
   fun saveBtn(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "সংরক্ষণ করুন" else "Save"
   fun cancelBtn(lang: AppLanguage) = if (lang == AppLanguage.BANGLA) "বাতিল" else "Cancel"

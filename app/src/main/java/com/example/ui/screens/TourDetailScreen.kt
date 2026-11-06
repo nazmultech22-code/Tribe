@@ -89,6 +89,12 @@ fun TourDetailScreen(
   val isOwner = tour != null && (tour?.ownerId == sessionState.userId || sessionState.userId == null)
   val isPublic = tour?.visibility == "public"
 
+  val context = androidx.compose.ui.platform.LocalContext.current
+  val savedTripsRepo = remember {
+    com.example.data.repository.SavedTripsRepository.getInstance(context.applicationContext)
+  }
+  val isSavedInRoom by savedTripsRepo.isTripSaved(tourId).collectAsState(initial = false)
+
   Scaffold(
     topBar = {
       TribeHeader(
@@ -98,6 +104,45 @@ fun TourDetailScreen(
         onLanguageToggle = { repository.setLanguage(it) },
         onBackClick = onBackClick,
         actions = {
+          // Save to Room DB bookmark button
+          if (tour != null) {
+            IconButton(
+              onClick = {
+                val currentTour = tour ?: return@IconButton
+                scope.launch {
+                  if (isSavedInRoom) {
+                    savedTripsRepo.deleteTripById(currentTour.id)
+                    snackbarMessage = L10n.removedFromRoomSuccess(lang)
+                  } else {
+                    val expTotal = expenses.sumOf { it.amount }
+                    val entity = com.example.data.local.room.SavedTripEntity(
+                      id = currentTour.id,
+                      title = currentTour.title,
+                      destinationName = destination?.name ?: currentTour.destinationId ?: "Bangladesh",
+                      startDate = currentTour.startDate,
+                      endDate = currentTour.endDate,
+                      status = currentTour.status,
+                      estimatedBudget = if (expTotal > 0) expTotal else 12000.0,
+                      actualExpenses = expTotal,
+                      memberCount = currentTour.maxMembers ?: 4,
+                      notes = currentTour.description,
+                      savedAt = System.currentTimeMillis()
+                    )
+                    savedTripsRepo.insertTrip(entity)
+                    snackbarMessage = L10n.savedToRoomSuccess(lang)
+                  }
+                }
+              },
+              modifier = Modifier.testTag("btn_save_to_room")
+            ) {
+              Icon(
+                imageVector = if (isSavedInRoom) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                contentDescription = L10n.saveToRoom(lang),
+                tint = if (isSavedInRoom) TribeGreenDark else MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          }
+
           // Share Tour Toggle (Requirement 8)
           if (isOwner && tour != null) {
             IconButton(

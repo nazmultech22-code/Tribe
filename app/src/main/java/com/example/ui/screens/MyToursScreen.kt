@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,7 @@ fun MyToursScreen(
   repository: TribeRepository,
   onNavigateToTourDetail: (String) -> Unit,
   onNavigateToCreateTour: () -> Unit,
+  onNavigateToSavedTrips: () -> Unit,
   onNavigateToAuth: () -> Unit
 ) {
   val sessionState by repository.sessionState.collectAsState()
@@ -62,7 +65,19 @@ fun MyToursScreen(
       TribeHeader(
         title = L10n.myToursTitle(lang),
         lang = lang,
-        onLanguageToggle = { repository.setLanguage(it) }
+        onLanguageToggle = { repository.setLanguage(it) },
+        actions = {
+          IconButton(
+            onClick = onNavigateToSavedTrips,
+            modifier = Modifier.testTag("btn_open_saved_trips_room")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Bookmark,
+              contentDescription = L10n.savedTripsTitle(lang),
+              tint = MaterialTheme.colorScheme.primary
+            )
+          }
+        }
       )
     },
     floatingActionButton = {
@@ -99,9 +114,19 @@ fun MyToursScreen(
           Spacer(modifier = Modifier.height(16.dp))
           Button(
             onClick = onNavigateToAuth,
-            colors = ButtonDefaults.buttonColors(containerColor = TribeGreenPrimary)
+            colors = ButtonDefaults.buttonColors(containerColor = TribeGreenPrimary),
+            modifier = Modifier.testTag("btn_auth_sign_in_prompt")
           ) {
             Text(L10n.loginTitle(lang))
+          }
+          Spacer(modifier = Modifier.height(16.dp))
+          OutlinedButton(
+            onClick = onNavigateToSavedTrips,
+            modifier = Modifier.testTag("btn_offline_saved_trips_unauth")
+          ) {
+            Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(L10n.savedTripsTitle(lang))
           }
         }
       }
@@ -114,6 +139,71 @@ fun MyToursScreen(
         .padding(padding)
         .padding(horizontal = 16.dp)
     ) {
+      // Room Saved Trips shortcut banner
+      Card(
+        onClick = onNavigateToSavedTrips,
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(vertical = 8.dp)
+          .testTag("card_saved_trips_room_banner")
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Surface(
+            shape = CircleShape,
+            color = TribeGreenPrimary,
+            modifier = Modifier.size(36.dp)
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Icon(
+                imageVector = Icons.Default.Bookmark,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+              )
+            }
+          }
+          Spacer(modifier = Modifier.width(12.dp))
+          Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text(
+                text = L10n.savedTripsTitle(lang),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = TribeGreenDark)
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = TribeGreenDark,
+                modifier = Modifier.padding(2.dp)
+              ) {
+                Text(
+                  text = L10n.roomDatabaseTag(lang),
+                  color = Color.White,
+                  fontSize = 9.sp,
+                  fontWeight = FontWeight.Bold,
+                  modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+              }
+            }
+            Text(
+              text = if (lang == AppLanguage.BANGLA) "লোকাল Room ডাটাবেসে সংরক্ষিত ট্রিপস দেখুন ও পরিচালনা করুন" else "View and manage trips in local Room DB",
+              style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF2E7D32), fontSize = 11.sp)
+            )
+          }
+          Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = TribeGreenDark
+          )
+        }
+      }
+
       // Mockup-style tabs: "সম্পন্ন ট্যুর" / "প্ল্যানকৃত ট্যুর" / "সব"
       TabRow(
         selectedTabIndex = selectedTab,

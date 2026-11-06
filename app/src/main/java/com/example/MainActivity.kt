@@ -42,6 +42,7 @@ sealed class Screen {
   object CreateDestination : Screen()
   data class CreateTour(val preselectedDestination: Destination? = null) : Screen()
   data class TourDetail(val tourId: String) : Screen()
+  object SavedTrips : Screen()
   object Auth : Screen()
 }
 
@@ -210,6 +211,7 @@ fun TribeApp(repository: TribeRepository) {
           repository = repository,
           onNavigateToTourDetail = { tId -> navigateTo(Screen.TourDetail(tId)) },
           onNavigateToCreateTour = { navigateTo(Screen.CreateTour()) },
+          onNavigateToSavedTrips = { navigateTo(Screen.SavedTrips) },
           onNavigateToAuth = { navigateTo(Screen.Auth) }
         )
 
@@ -265,6 +267,22 @@ fun TribeApp(repository: TribeRepository) {
           onNavigateToDestination = { dest -> navigateTo(Screen.DestinationDetail(dest)) },
           onBackClick = { navigateBack() }
         )
+
+        is Screen.SavedTrips -> {
+          val context = androidx.compose.ui.platform.LocalContext.current
+          val savedTripsRepo = remember {
+            com.example.data.repository.SavedTripsRepository.getInstance(context.applicationContext)
+          }
+          val savedTripsViewModel: com.example.ui.screens.saved.SavedTripsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+            factory = com.example.ui.screens.saved.SavedTripsViewModel.Factory(savedTripsRepo)
+          )
+          com.example.ui.screens.saved.SavedTripsScreen(
+            viewModel = savedTripsViewModel,
+            repository = repository,
+            onNavigateToTourDetail = { tId -> navigateTo(Screen.TourDetail(tId)) },
+            onBackClick = { navigateBack() }
+          )
+        }
 
         is Screen.Auth -> AuthScreen(
           repository = repository,
