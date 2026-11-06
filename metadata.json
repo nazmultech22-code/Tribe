@@ -1,0 +1,6 @@
+{
+  "name": "TRIBE",
+  "description": "Travel Planning & Community Tour App",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
