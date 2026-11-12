@@ -1,5 +1,6 @@
 package com.example.data.transfer
 
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothServerSocket
@@ -14,6 +15,7 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.ContentValues
 import android.net.Uri
 import android.os.Build
@@ -23,6 +25,7 @@ import android.os.ParcelUuid
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Log
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.DataInputStream
@@ -78,9 +81,32 @@ class BluetoothTransferManager(private val context: Context) {
   private val scanning = AtomicBoolean(false)
 
   fun isAvailable(): Boolean = adapter != null
-  fun isEnabled(): Boolean = adapter?.isEnabled == true
+
+  fun isEnabled(): Boolean = try {
+    hasConnectPermission() && adapter?.isEnabled == true
+  } catch (e: SecurityException) {
+    Log.w(TAG, "Bluetooth state permission unavailable", e)
+    false
+  }
+
+  private fun hasPermission(permission: String): Boolean =
+    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+  private fun hasConnectPermission(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.S || hasPermission(Manifest.permission.BLUETOOTH_CONNECT)
+
+  private fun hasScanPermission(): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      hasPermission(Manifest.permission.BLUETOOTH_SCAN)
+    } else {
+      hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+  private fun hasAdvertisePermission(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.S || hasPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
 
   fun startAdvertising(): Boolean {
+    if (!hasConnectPermission() || !hasAdvertisePermission()) return false
     val bluetoothAdapter = adapter ?: return false
     if (!bluetoothAdapter.isEnabled) return false
     val bleAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser ?: return false
@@ -114,13 +140,14 @@ class BluetoothTransferManager(private val context: Context) {
     val currentAdvertiser = advertiser
     val currentCallback = advertiseCallback
     if (currentAdvertiser != null && currentCallback != null) {
-      runCatching { currentAdvertiser.stopAdvertising(currentCallback) }
+      if (hasAdvertisePermission()) runCatching { currentAdvertiser.stopAdvertising(currentCallback) }
     }
     advertiser = null
     advertiseCallback = null
   }
 
   fun startScan(onPeerFound: (NearbyTransferPeer) -> Unit): Boolean {
+    if (!hasConnectPermission() || !hasScanPermission()) return false
     val bluetoothAdapter = adapter ?: return false
     if (!bluetoothAdapter.isEnabled) return false
     val bleScanner = bluetoothAdapter.bluetoothLeScanner ?: return false
@@ -157,7 +184,7 @@ class BluetoothTransferManager(private val context: Context) {
     val currentScanner = scanner
     val currentCallback = scanCallback
     if (currentScanner != null && currentCallback != null && scanning.getAndSet(false)) {
-      runCatching { currentScanner.stopScan(currentCallback) }
+      if (hasScanPermission()) runCatching { currentScanner.stopScan(currentCallback) }
     }
     scanner = null
     scanCallback = null
@@ -173,6 +200,7 @@ class BluetoothTransferManager(private val context: Context) {
     if (bytes.isEmpty() || bytes.size.toLong() > MAX_TRANSFER_BYTES) {
       return@withContext Result.failure(IllegalArgumentException("Transfer file must be 1 byte to 20 MB"))
     }
+    if (!hasConnectPermission()) return@withContext Result.failure(SecurityException("Bluetooth connect permission is required"))
     if (adapter?.isEnabled != true) return@withContext Result.failure(IOException("Bluetooth is turned off"))
     if (device.bondState != BluetoothDevice.BOND_BONDED) {
       return@withContext Result.failure(IOException("Pair both phones in Android Bluetooth settings before sending"))
@@ -237,6 +265,7 @@ class BluetoothTransferManager(private val context: Context) {
   ): Result<ReceivedTransfer> = withContext(Dispatchers.IO) {
     val bluetoothAdapter = adapter
       ?: return@withContext Result.failure(IOException("This device has no Bluetooth adapter"))
+    if (!hasConnectPermission()) return@withContext Result.failure(SecurityException("Bluetooth connect permission is required"))
     if (!bluetoothAdapter.isEnabled) return@withContext Result.failure(IOException("Bluetooth is turned off"))
 
     var server: BluetoothServerSocket? = null
