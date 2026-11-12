@@ -106,7 +106,9 @@ data class TourChecklistItem(
   val title: String,
   @Json(name = "status") val status: String = "todo",
   @Json(name = "created_at") val createdAt: String? = null
-)
+) {
+  val isCompleted: Boolean get() = status == "done" || status == "completed"
+}
 
 @JsonClass(generateAdapter = true)
 data class TourGuide(
