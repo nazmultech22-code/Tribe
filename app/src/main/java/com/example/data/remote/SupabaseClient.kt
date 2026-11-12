@@ -886,7 +886,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         put("status", if (isCompleted) "done" else "todo")
       }
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tour_checklists?id=eq.$itemId")
+        .url("$baseUrl/rest/v1/tour_tasks?id=eq.$itemId")
         .patch(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
       val resp = okHttpClient.newCall(req).execute()
@@ -971,7 +971,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     if (tourId.isBlank()) return@withContext emptyList()
     try {
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tour_comments?tour_id=eq.$tourId&select=*&order=created_at.asc")
+        .url("$baseUrl/rest/v1/tour_messages?tour_id=eq.$tourId&select=*&order=created_at.asc")
         .get()
         .build()
       val resp = okHttpClient.newCall(req).execute()
@@ -989,11 +989,14 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
       val userId = sessionManager.sessionState.value.userId ?: return@withContext Result.failure(Exception("Not logged in"))
       val payload = JSONObject().apply {
         put("tour_id", tourId)
-        put("user_id", userId)
+        put("id", java.util.UUID.randomUUID().toString())
+        put("sender_id", userId)
+        put("content_type", "text")
         put("body", bodyText)
+        put("client_created_at", java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.US).format(java.util.Date()))
       }
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tour_comments")
+        .url("$baseUrl/rest/v1/tour_messages")
         .post(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
       val resp = okHttpClient.newCall(req).execute()
