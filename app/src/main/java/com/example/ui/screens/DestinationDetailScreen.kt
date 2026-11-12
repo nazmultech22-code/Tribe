@@ -55,7 +55,7 @@ fun DestinationDetailScreen(
       scope.launch {
         isLoadingTours = true
         // Exact destination ID matching on view "public_tour_discovery"
-        publicTours = repository.supabaseClient.getPublicToursByDestination(destination.id)
+        publicTours = repository.supabaseClient.getPublicToursByDestination(destination.name)
         aliases = repository.supabaseClient.getAliasesForDestination(destination.id)
         isLoadingTours = false
       }
