@@ -79,7 +79,7 @@ data class TourExpense(
   @Json(name = "tour_id") val tourId: String,
   @Json(name = "paid_by") val paidBy: String? = null,
   val title: String,
-  val description: String? = null,
+  @Json(name = "notes") val description: String? = null,
   val amount: Double,
   val category: String = "Other",
   @Json(name = "expense_date") val expenseDate: String? = null,
@@ -93,9 +93,13 @@ data class TourItineraryItem(
   @Json(name = "tour_id") val tourId: String,
   @Json(name = "sort_order") val dayNumber: Int,
   val title: String,
-  val description: String? = null,
+  @Json(name = "details") val description: String? = null,
   val location: String? = null,
-  @Json(name = "created_at") val createdAt: String? = null
+  @Json(name = "created_at") val createdAt: String? = null,
+  @Json(name = "day_date") val dayDate: String? = null,
+  @Json(name = "starts_at") val startsAt: String? = null,
+  @Json(name = "ends_at") val endsAt: String? = null,
+  @Json(name = "estimated_cost") val estimatedCost: Double? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -104,7 +108,11 @@ data class TourChecklistItem(
   @Json(name = "tour_id") val tourId: String,
   val title: String,
   @Json(name = "status") val status: String = "todo",
-  @Json(name = "created_at") val createdAt: String? = null
+  @Json(name = "created_at") val createdAt: String? = null,
+  val details: String? = null,
+  @Json(name = "assigned_to") val assignedTo: String? = null,
+  @Json(name = "assigned_guest_id") val assignedGuestId: String? = null,
+  @Json(name = "due_at") val dueAt: String? = null
 ) {
   val isCompleted: Boolean get() = status == "done" || status == "completed"
 }
@@ -117,7 +125,8 @@ data class TourGuide(
   val name: String,
   val phone: String? = null,
   val email: String? = null,
-  @Json(name = "created_at") val createdAt: String? = null
+  @Json(name = "created_at") val createdAt: String? = null,
+  @Json(name = "created_by") val createdBy: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -133,9 +142,12 @@ data class TourMember(
 data class TourComment(
   val id: String = "",
   @Json(name = "tour_id") val tourId: String,
-  @Json(name = "user_id") val userId: String,
+  @Json(name = "sender_id") val userId: String,
   val body: String,
-  @Json(name = "created_at") val createdAt: String? = null
+  @Json(name = "created_at") val createdAt: String? = null,
+  @Json(name = "content_type") val contentType: String? = null,
+  @Json(name = "client_created_at") val clientCreatedAt: String? = null,
+  @Json(name = "sender_guest_id") val senderGuestId: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -158,6 +170,7 @@ data class AppNotification(
   val id: String = "",
   @Json(name = "user_id") val userId: String,
   @Json(name = "tour_id") val tourId: String? = null,
+  @Json(name = "actor_id") val actorId: String? = null,
   val title: String,
   val body: String? = null,
   val type: String = "general",

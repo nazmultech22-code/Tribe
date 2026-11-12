@@ -152,6 +152,51 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     }
   }
 
+
+  suspend fun signInWithGoogleIdToken(idToken: String): Result<String> = withContext(Dispatchers.IO) {
+    try {
+      if (idToken.isBlank()) return@withContext Result.failure(Exception("Google ID token is empty"))
+      val payload = JSONObject().apply {
+        put("provider", "google")
+        put("id_token", idToken)
+      }
+      val req = Request.Builder()
+        .url("$baseUrl/auth/v1/token?grant_type=id_token")
+        .post(payload.toString().toRequestBody("application/json".toMediaType()))
+        .build()
+      val resp = okHttpClient.newCall(req).execute()
+      val body = resp.body?.string() ?: ""
+      if (!resp.isSuccessful) {
+        val err = runCatching { JSONObject(body) }.getOrNull()
+        val message = err?.optString("msg")?.takeIf { it.isNotBlank() }
+          ?: err?.optString("message")?.takeIf { it.isNotBlank() }
+          ?: err?.optString("error_description")?.takeIf { it.isNotBlank() }
+          ?: "Google sign-in failed (\${resp.code})"
+        return@withContext Result.failure(Exception(message))
+      }
+      val session = JSONObject(body)
+      val accessToken = session.optString("access_token")
+      val user = session.optJSONObject("user")
+        ?: return@withContext Result.failure(Exception("Supabase did not return a user"))
+      val userId = user.optString("id")
+      val email = user.optString("email")
+      val metadata = user.optJSONObject("user_metadata") ?: JSONObject()
+      val fullName = metadata.optString("full_name").ifBlank {
+        metadata.optString("name").ifBlank { email.substringBefore("@") }
+      }
+      val username = metadata.optString("username").ifBlank { email.substringBefore("@") }
+      if (accessToken.isBlank() || userId.isBlank() || email.isBlank()) {
+        return@withContext Result.failure(Exception("Incomplete Supabase session returned by Google sign-in"))
+      }
+      sessionManager.saveSession(accessToken, userId, email, fullName, username)
+      createOrUpdateProfile(userId, fullName, username, email)
+      Result.success("Signed in with Google")
+    } catch (e: Exception) {
+      Log.e("SupabaseClient", "signInWithGoogleIdToken error", e)
+      Result.failure(e)
+    }
+  }
+
   suspend fun resetPassword(email: String): Result<String> = withContext(Dispatchers.IO) {
     try {
       val payload = JSONObject().apply {

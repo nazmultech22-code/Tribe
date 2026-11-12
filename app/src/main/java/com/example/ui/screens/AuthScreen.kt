@@ -16,6 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.example.BuildConfig
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,6 +50,7 @@ fun AuthScreen(
   val sessionState by repository.sessionState.collectAsState()
   val lang = sessionState.language
   val scope = rememberCoroutineScope()
+  val context = LocalContext.current
 
   var isSignUp by remember { mutableStateOf(false) }
   var isForgotPassword by remember { mutableStateOf(false) }
@@ -329,9 +338,52 @@ fun AuthScreen(
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // Google Login Info Button (Explains configuration requirement cleanly)
+      // Native Google Credential Manager sign-in, exchanged for a Supabase session.
       OutlinedButton(
-        onClick = { showGoogleInfoDialog = true },
+        onClick = {
+          val webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
+          if (webClientId.isBlank() || webClientId.startsWith("YOUR_")) {
+            showGoogleInfoDialog = true
+          } else {
+            isLoading = true
+            errorMessage = null
+            scope.launch {
+              try {
+                val googleOption = GetGoogleIdOption.Builder()
+                  .setServerClientId(webClientId)
+                  .setFilterByAuthorizedAccounts(false)
+                  .setAutoSelectEnabled(false)
+                  .build()
+                val request = GetCredentialRequest.Builder()
+                  .addCredentialOption(googleOption)
+                  .build()
+                val credential = CredentialManager.create(context)
+                  .getCredential(context, request).credential
+                if (credential is CustomCredential &&
+                  credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                ) {
+                  val googleToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
+                  val result = repository.supabaseClient.signInWithGoogleIdToken(googleToken)
+                  if (result.isSuccess) {
+                    repository.initializeAndSeedIfNeeded()
+                    onAuthSuccess()
+                  } else {
+                    errorMessage = result.exceptionOrNull()?.message ?: L10n.errorOccurred(lang)
+                  }
+                } else {
+                  errorMessage = if (lang == AppLanguage.BANGLA) "Google অ্যাকাউন্ট পাওয়া যায়নি" else "Google account was not returned"
+                }
+              } catch (e: GetCredentialException) {
+                errorMessage = e.localizedMessage ?: if (lang == AppLanguage.BANGLA) "Google সাইন-ইন বাতিল বা ব্যর্থ হয়েছে" else "Google sign-in was cancelled or failed"
+              } catch (e: Exception) {
+                errorMessage = e.localizedMessage ?: L10n.errorOccurred(lang)
+              } finally {
+                isLoading = false
+              }
+            }
+          }
+        },
+        enabled = !isLoading,
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
           .fillMaxWidth()
@@ -339,13 +391,13 @@ fun AuthScreen(
           .testTag("btn_google_info")
       ) {
         Icon(
-          imageVector = Icons.Default.Info,
+          imageVector = Icons.Default.Login,
           contentDescription = null,
           modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-          text = if (lang == AppLanguage.BANGLA) "গুগল সাইন-ইন সংক্রান্ত তথ্য" else "Google Sign-In Info",
+          text = if (lang == AppLanguage.BANGLA) "Google দিয়ে চালিয়ে যান" else "Continue with Google",
           style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
         )
       }
