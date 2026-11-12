@@ -299,7 +299,24 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
       val arr = JSONArray(body)
       if (arr.length() > 0) {
         val adapter = moshi.adapter(UserProfile::class.java)
-        adapter.fromJson(arr.getJSONObject(0).toString())
+        val storedProfile = adapter.fromJson(arr.getJSONObject(0).toString()) ?: return@withContext null
+        val locationParts = storedProfile.city?.split(",", limit = 2)
+        val privatePhone = runCatching {
+          val privateRequest = Request.Builder()
+            .url("$baseUrl/rest/v1/profile_private?user_id=eq.$userId&select=phone")
+            .get()
+            .build()
+          okHttpClient.newCall(privateRequest).execute().use { privateResponse ->
+            val privateBody = privateResponse.body?.string().orEmpty()
+            if (!privateResponse.isSuccessful || !isValidJsonArray(privateBody)) null
+            else JSONArray(privateBody).optJSONObject(0)?.optString("phone")?.takeIf { it.isNotBlank() }
+          }
+        }.getOrNull()
+        storedProfile.copy(
+          city = locationParts?.firstOrNull()?.trim()?.takeIf { it.isNotBlank() },
+          country = locationParts?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() },
+          phone = privatePhone
+        )
       } else null
     } catch (e: Exception) {
       Log.e("SupabaseClient", "getProfile error", e)
@@ -318,29 +335,42 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     avatarUrl: String?
   ): Result<Boolean> = withContext(Dispatchers.IO) {
     try {
+      val location = listOfNotNull(city?.takeIf { it.isNotBlank() }, country?.takeIf { it.isNotBlank() }).joinToString(", ")
       val payload = JSONObject().apply {
         put("full_name", fullName)
         put("username", username)
-        if (bio != null) put("bio", bio)
-        val location = listOfNotNull(city?.takeIf { it.isNotBlank() }, country?.takeIf { it.isNotBlank() }).joinToString(", ")
-        if (location.isNotBlank()) put("location", location)
-        if (phone != null) put("phone", phone)
+        put("bio", bio ?: JSONObject.NULL)
+        put("location", location.ifBlank { JSONObject.NULL })
         if (avatarUrl != null) put("avatar_url", avatarUrl)
       }
 
       val req = Request.Builder()
         .url("$baseUrl/rest/v1/profiles?id=eq.$userId")
-        .header("Prefer", "return=representation")
+        .header("Prefer", "return=minimal")
         .patch(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
 
       val resp = okHttpClient.newCall(req).execute()
-      if (resp.isSuccessful) {
-        sessionManager.updateProfile(fullName, username, avatarUrl)
-        Result.success(true)
-      } else {
-        Result.failure(Exception("Update failed (${resp.code})"))
+      if (!resp.isSuccessful) {
+        return@withContext Result.failure(Exception("Profile update failed (${resp.code}): ${resp.body?.string().orEmpty()}"))
       }
+
+      // Contact details live in profile_private, not the public profiles table.
+      val privatePayload = JSONObject()
+        .put("user_id", userId)
+        .put("phone", phone ?: JSONObject.NULL)
+      val privateRequest = Request.Builder()
+        .url("$baseUrl/rest/v1/profile_private?on_conflict=user_id")
+        .header("Prefer", "resolution=merge-duplicates,return=minimal")
+        .post(privatePayload.toString().toRequestBody("application/json".toMediaType()))
+        .build()
+      val privateResponse = okHttpClient.newCall(privateRequest).execute()
+      if (!privateResponse.isSuccessful) {
+        return@withContext Result.failure(Exception("Private contact update failed (${privateResponse.code}): ${privateResponse.body?.string().orEmpty()}"))
+      }
+
+      sessionManager.updateProfile(fullName, username, avatarUrl)
+      Result.success(true)
     } catch (e: Exception) {
       Result.failure(e)
     }
