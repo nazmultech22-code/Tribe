@@ -311,7 +311,7 @@ fun CreateTourScreen(
           scope.launch {
             val res = repository.supabaseClient.createTour(
               title = title.trim(),
-              destinationId = selectedDestination?.id,
+              destinationId = selectedDestination?.name,
               startDate = startDate.trim().ifBlank { null },
               endDate = endDate.trim().ifBlank { null },
               maxMembers = maxMembers.toIntOrNull() ?: 5,
