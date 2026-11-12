@@ -52,36 +52,15 @@ class TribeRepository(
     }
   }
 
+  /**
+   * Destination catalog tables are not part of the currently connected Supabase schema.
+   * The app uses the bundled DEFAULT_POPULAR_DESTINATIONS list as its safe fallback.
+   * Avoid trying to seed a missing remote table on every launch.
+   */
   suspend fun initializeAndSeedIfNeeded() {
-    try {
-      val existing = supabaseClient.getDestinations()
-      if (existing.isEmpty() && sessionState.value.isLoggedIn) {
-        // Seed default popular destinations
-        seedPopularDestinations()
-      }
-    } catch (e: Exception) {
-      Log.w("TribeRepository", "Seed check skipped: ${e.message}")
-    }
+    // Intentionally no-op until destination catalog tables and their RLS policies are added.
   }
 
-  suspend fun seedPopularDestinations() {
-    for (d in SEED_DATA) {
-      supabaseClient.createDestination(
-        name = d.name,
-        country = d.country,
-        region = d.region,
-        description = d.description,
-        bestSeason = d.bestSeason,
-        transportInfo = d.transportInfo,
-        accommodationInfo = d.accommodationInfo,
-        foodInfo = d.foodInfo,
-        guideInfo = d.guideInfo,
-        safetyTips = d.safetyTips,
-        bnAliases = d.bnAliases,
-        enAliases = d.enAliases
-      )
-    }
-  }
 
   companion object {
     @Volatile
