@@ -340,7 +340,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         put("full_name", fullName)
         put("username", username)
         put("bio", bio ?: JSONObject.NULL)
-        put("location", location.ifBlank { JSONObject.NULL })
+        put("location", if (location.isBlank()) JSONObject.NULL else location)
         if (avatarUrl != null) put("avatar_url", avatarUrl)
       }
 
@@ -350,10 +350,11 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         .patch(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
 
-      val resp = okHttpClient.newCall(req).execute()
-      if (!resp.isSuccessful) {
-        return@withContext Result.failure(Exception("Profile update failed (${resp.code}): ${resp.body?.string().orEmpty()}"))
+      val profileError = okHttpClient.newCall(req).execute().use { response ->
+        if (response.isSuccessful) null
+        else "Profile update failed (${response.code}): ${response.body?.string().orEmpty()}"
       }
+      if (profileError != null) return@withContext Result.failure(Exception(profileError))
 
       // Contact details live in profile_private, not the public profiles table.
       val privatePayload = JSONObject()
@@ -364,10 +365,11 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         .header("Prefer", "resolution=merge-duplicates,return=minimal")
         .post(privatePayload.toString().toRequestBody("application/json".toMediaType()))
         .build()
-      val privateResponse = okHttpClient.newCall(privateRequest).execute()
-      if (!privateResponse.isSuccessful) {
-        return@withContext Result.failure(Exception("Private contact update failed (${privateResponse.code}): ${privateResponse.body?.string().orEmpty()}"))
+      val privateError = okHttpClient.newCall(privateRequest).execute().use { response ->
+        if (response.isSuccessful) null
+        else "Private contact update failed (${response.code}): ${response.body?.string().orEmpty()}"
       }
+      if (privateError != null) return@withContext Result.failure(Exception(privateError))
 
       sessionManager.updateProfile(fullName, username, avatarUrl)
       Result.success(true)
