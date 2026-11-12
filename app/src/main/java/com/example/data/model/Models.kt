@@ -104,7 +104,7 @@ data class TourChecklistItem(
   val id: String = "",
   @Json(name = "tour_id") val tourId: String,
   val title: String,
-  @Json(name = "is_completed") val isCompleted: Boolean = false,
+  @Json(name = "status") val status: String = "todo",
   @Json(name = "created_at") val createdAt: String? = null
 )
 
