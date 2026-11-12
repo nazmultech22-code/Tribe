@@ -118,7 +118,7 @@ fun TourDetailScreen(
                     val entity = com.example.data.local.room.SavedTripEntity(
                       id = currentTour.id,
                       title = currentTour.title,
-                      destinationName = destination?.name ?: currentTour.destinationId ?: "Bangladesh",
+                      destinationName = destination?.name ?: currentTour.destinationName.ifBlank { "Bangladesh" },
                       startDate = currentTour.startDate,
                       endDate = currentTour.endDate,
                       status = currentTour.status,
