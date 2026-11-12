@@ -625,7 +625,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
   suspend fun updateTourVisibility(tourId: String, newVisibility: String): Result<Boolean> = withContext(Dispatchers.IO) {
     try {
       val payload = JSONObject().apply {
-        put("visibility", newVisibility)
+        put("is_public", newVisibility == "public")
       }
 
       val req = Request.Builder()
@@ -799,7 +799,14 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         ?: return@withContext Result.failure(Exception("User not authenticated"))
       val tour = getTourById(tourId)
         ?: return@withContext Result.failure(Exception("Tour not found"))
-      val dayDate = java.time.LocalDate.parse(tour.startDate).plusDays((dayNumber - 1).coerceAtLeast(0).toLong()).toString()
+      val startDate = tour.startDate ?: return@withContext Result.failure(Exception("Tour start date is missing"))
+      val start = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(startDate)
+        ?: return@withContext Result.failure(Exception("Tour start date is invalid"))
+      val calendar = java.util.Calendar.getInstance().apply {
+        time = start
+        add(java.util.Calendar.DAY_OF_YEAR, (dayNumber - 1).coerceAtLeast(0))
+      }
+      val dayDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(calendar.time)
       val payload = JSONObject().apply {
         put("tour_id", tourId)
         put("day_date", dayDate)
