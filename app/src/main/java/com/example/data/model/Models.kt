@@ -162,6 +162,8 @@ data class AppNotification(
   val title: String,
   val body: String? = null,
   val type: String = "general",
-  @Json(name = "is_read") val isRead: Boolean = false,
+  @Json(name = "read_at") val readAt: String? = null,
   @Json(name = "created_at") val createdAt: String? = null
-)
+) {
+  val isRead: Boolean get() = readAt != null
+}
