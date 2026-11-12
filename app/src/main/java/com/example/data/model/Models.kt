@@ -42,6 +42,12 @@ data class PublicTourDiscoveryItem(
   @Json(name = "end_date") val endDate: String? = null,
   val status: String? = "upcoming",
   @Json(name = "budget_per_person") val estimatedPerPerson: Double? = null,
+  val actualExpenseTotal: Double? = null,
+  val actualPerPerson: Double? = null,
+  val transportTotal: Double? = null,
+  val accommodationTotal: Double? = null,
+  val foodTotal: Double? = null,
+  val otherTotal: Double? = null,
   @Json(name = "created_at") val createdAt: String? = null
 )
 
