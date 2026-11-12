@@ -68,8 +68,8 @@ fun TourDetailScreen(
       val t = repository.supabaseClient.getTourById(tourId)
       tour = t
       if (t != null) {
-        if (!t.destinationId.isNullOrBlank()) {
-          destination = repository.getDestinationById(t.destinationId)
+        if (t.destinationName.isNotBlank()) {
+          destination = com.example.data.model.Destination(name = t.destinationName)
         }
         expenses = repository.supabaseClient.getTourExpenses(tourId)
         itinerary = repository.supabaseClient.getTourItinerary(tourId)
@@ -148,14 +148,14 @@ fun TourDetailScreen(
             IconButton(
               onClick = {
                 val nextVis = if (isPublic) "private" else "public"
-                if (nextVis == "public" && tour?.destinationId.isNullOrBlank()) {
+                if (nextVis == "public" && tour?.destinationName.isNullOrBlank()) {
                   snackbarMessage = L10n.mustSelectDestinationBeforeSharing(lang)
                   return@IconButton
                 }
                 scope.launch {
                   val res = repository.supabaseClient.updateTourVisibility(tourId, nextVis)
                   if (res.isSuccess) {
-                    tour = tour?.copy(visibility = nextVis)
+                    tour = tour?.copy(isPublic = nextVis == "public")
                     snackbarMessage = if (nextVis == "public") L10n.sharedSuccess(lang) else L10n.madePrivateSuccess(lang)
                   } else {
                     snackbarMessage = res.exceptionOrNull()?.message ?: L10n.errorOccurred(lang)
@@ -366,14 +366,14 @@ fun TourDetailScreen(
                 Button(
                   onClick = {
                     val nextVis = if (isPublic) "private" else "public"
-                    if (nextVis == "public" && currentTour.destinationId.isNullOrBlank()) {
+                    if (nextVis == "public" && currentTour.destinationName.isBlank()) {
                       snackbarMessage = L10n.mustSelectDestinationBeforeSharing(lang)
                       return@Button
                     }
                     scope.launch {
                       val res = repository.supabaseClient.updateTourVisibility(tourId, nextVis)
                       if (res.isSuccess) {
-                        tour = tour?.copy(visibility = nextVis)
+                        tour = tour?.copy(isPublic = nextVis == "public")
                         snackbarMessage = if (nextVis == "public") L10n.sharedSuccess(lang) else L10n.madePrivateSuccess(lang)
                       }
                     }
@@ -736,7 +736,7 @@ fun TourDetailScreen(
                   onCheckedChange = { checked ->
                     scope.launch {
                       repository.supabaseClient.toggleChecklistItem(item.id, checked)
-                      checklists = checklists.map { if (it.id == item.id) it.copy(isCompleted = checked) else it }
+                      checklists = checklists.map { if (it.id == item.id) it.copy(status = if (checked) "done" else "todo") else it }
                     }
                   }
                 )
