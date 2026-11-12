@@ -35,20 +35,13 @@ data class DestinationAlias(
 
 @JsonClass(generateAdapter = true)
 data class PublicTourDiscoveryItem(
-  @Json(name = "tour_id") val tourId: String,
-  @Json(name = "destination_id") val destinationId: String,
-  @Json(name = "destination_name") val destinationName: String? = null,
-  @Json(name = "tour_title") val tourTitle: String? = null,
+  @Json(name = "id") val tourId: String,
+  @Json(name = "destination") val destinationName: String? = null,
+  @Json(name = "title") val tourTitle: String? = null,
   @Json(name = "start_date") val startDate: String? = null,
   @Json(name = "end_date") val endDate: String? = null,
-  val status: String? = "planning",
-  @Json(name = "actual_expense_total") val actualExpenseTotal: Double? = null,
-  @Json(name = "estimated_per_person") val estimatedPerPerson: Double? = null,
-  @Json(name = "actual_per_person") val actualPerPerson: Double? = null,
-  @Json(name = "accommodation_total") val accommodationTotal: Double? = null,
-  @Json(name = "transport_total") val transportTotal: Double? = null,
-  @Json(name = "food_total") val foodTotal: Double? = null,
-  @Json(name = "other_total") val otherTotal: Double? = null,
+  val status: String? = "upcoming",
+  @Json(name = "budget_per_person") val estimatedPerPerson: Double? = null,
   @Json(name = "created_at") val createdAt: String? = null
 )
 
