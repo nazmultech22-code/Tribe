@@ -21,8 +21,8 @@ android {
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-    buildConfigField("String", "SUPABASE_URL", "\"https://cididsanututlefebehw.supabase.co\"")
-    buildConfigField("String", "SUPABASE_ANON_KEY", "\"sb_publishable_6DaFN--g0nkh6E3s_eHzBw_WEnMAnVK\"")
+    buildConfigField("String", "SUPABASE_URL", "\"https://sarfafikdfhrlbqzzdeu.supabase.co\"")
+    buildConfigField("String", "SUPABASE_ANON_KEY", "\"sb_publishable_t9Onzi1dMgaJwvrkzeaemg_9NC2ojKY\"")
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
