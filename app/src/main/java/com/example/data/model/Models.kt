@@ -57,17 +57,22 @@ data class Tour(
   val id: String = "",
   val title: String,
   val description: String? = null,
-  @Json(name = "destination_id") val destinationId: String? = null,
+  @Json(name = "destination") val destinationName: String = "",
+  @Json(name = "creator_id") val creatorId: String? = null,
   @Json(name = "start_date") val startDate: String? = null,
   @Json(name = "end_date") val endDate: String? = null,
-  val status: String = "planning",
-  val visibility: String = "private",
-  @Json(name = "max_members") val maxMembers: Int? = 5,
-  @Json(name = "meeting_point") val meetingPoint: String? = null,
-  @Json(name = "owner_id") val ownerId: String? = null,
+  val status: String = "upcoming",
+  @Json(name = "is_public") val isPublic: Boolean = false,
+  @Json(name = "max_members") val maxMembers: Int? = 10,
   @Json(name = "created_at") val createdAt: String? = null,
   @Json(name = "updated_at") val updatedAt: String? = null
-)
+) {
+  // Compatibility accessors for existing Compose screens.
+  val ownerId: String? get() = creatorId
+  val visibility: String get() = if (isPublic) "public" else "private"
+  val destinationId: String? get() = null
+  val meetingPoint: String? get() = null
+}
 
 @JsonClass(generateAdapter = true)
 data class TourExpense(
@@ -87,7 +92,7 @@ data class TourExpense(
 data class TourItineraryItem(
   val id: String = "",
   @Json(name = "tour_id") val tourId: String,
-  @Json(name = "day_number") val dayNumber: Int,
+  @Json(name = "sort_order") val dayNumber: Int,
   val title: String,
   val description: String? = null,
   val location: String? = null,
@@ -120,7 +125,6 @@ data class TourMember(
   @Json(name = "tour_id") val tourId: String,
   @Json(name = "user_id") val userId: String,
   val role: String = "member",
-  val status: String = "active",
   @Json(name = "joined_at") val joinedAt: String? = null
 )
 
