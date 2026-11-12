@@ -527,18 +527,57 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
   suspend fun getMyTours(userId: String): List<Tour> = withContext(Dispatchers.IO) {
     if (userId.isBlank()) return@withContext emptyList()
     try {
-      val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tours?creator_id=eq.$userId&order=created_at.desc")
+      val type = Types.newParameterizedType(List::class.java, Tour::class.java)
+      val adapter = moshi.adapter<List<Tour>>(type)
+
+      // Fetch tours created by this user.
+      val createdRequest = Request.Builder()
+        .url("$baseUrl/rest/v1/tours?creator_id=eq.$userId&select=*&order=created_at.desc")
         .get()
         .build()
-      val resp = okHttpClient.newCall(req).execute()
-      val body = resp.body?.string() ?: return@withContext emptyList()
-      if (!resp.isSuccessful || !isValidJsonArray(body)) {
-        Log.w("SupabaseClient", "getMyTours response not array (${resp.code}): $body")
-        return@withContext emptyList()
+      val createdResponse = okHttpClient.newCall(createdRequest).execute()
+      val createdBody = createdResponse.body?.string() ?: "[]"
+      val createdTours = if (createdResponse.isSuccessful && isValidJsonArray(createdBody)) {
+        adapter.fromJson(createdBody) ?: emptyList()
+      } else {
+        Log.w("SupabaseClient", "getMyTours created query failed (${createdResponse.code}): $createdBody")
+        emptyList()
       }
-      val type = Types.newParameterizedType(List::class.java, Tour::class.java)
-      moshi.adapter<List<Tour>>(type).fromJson(body) ?: emptyList()
+
+      // Also include tours where the user is a member.
+      val memberRequest = Request.Builder()
+        .url("$baseUrl/rest/v1/tour_members?user_id=eq.$userId&select=tour_id")
+        .get()
+        .build()
+      val memberResponse = okHttpClient.newCall(memberRequest).execute()
+      val memberBody = memberResponse.body?.string() ?: "[]"
+      val memberTourIds = if (memberResponse.isSuccessful && isValidJsonArray(memberBody)) {
+        val rows = JSONArray(memberBody)
+        (0 until rows.length()).mapNotNull { index ->
+          rows.getJSONObject(index).optString("tour_id").takeIf { it.isNotBlank() }
+        }.distinct()
+      } else {
+        Log.w("SupabaseClient", "getMyTours membership query failed (${memberResponse.code}): $memberBody")
+        emptyList()
+      }
+
+      val joinedTours = if (memberTourIds.isNotEmpty()) {
+        val joinedRequest = Request.Builder()
+          .url("$baseUrl/rest/v1/tours?id=in.(${memberTourIds.joinToString(",")})&select=*&order=created_at.desc")
+          .get()
+          .build()
+        val joinedResponse = okHttpClient.newCall(joinedRequest).execute()
+        val joinedBody = joinedResponse.body?.string() ?: "[]"
+        if (joinedResponse.isSuccessful && isValidJsonArray(joinedBody)) {
+          adapter.fromJson(joinedBody) ?: emptyList()
+        } else {
+          Log.w("SupabaseClient", "getMyTours joined query failed (${joinedResponse.code}): $joinedBody")
+          emptyList()
+        }
+      } else emptyList()
+
+      (createdTours + joinedTours).distinctBy { it.id }
+        .sortedByDescending { it.createdAt ?: "" }
     } catch (e: Exception) {
       Log.e("SupabaseClient", "getMyTours error", e)
       emptyList()
