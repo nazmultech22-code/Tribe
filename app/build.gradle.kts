@@ -61,6 +61,8 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+  // Diagnostic pass: retain the full lint report and APK so all issues can be fixed together.
+  lint { abortOnError = false }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true

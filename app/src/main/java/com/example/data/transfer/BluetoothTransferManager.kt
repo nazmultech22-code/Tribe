@@ -49,7 +49,7 @@ import javax.crypto.spec.SecretKeySpec
 
 data class NearbyTransferPeer(val device: BluetoothDevice) {
   val address: String get() = device.address
-  val displayName: String get() = runCatching { device.name }.getOrNull()?.takeIf { it.isNotBlank() } ?: address
+  val displayName: String get() = address
 }
 
 data class ReceivedTransfer(
