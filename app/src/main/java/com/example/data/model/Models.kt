@@ -147,7 +147,7 @@ data class UserProfile(
   val email: String? = null,
   @Json(name = "avatar_url") val avatarUrl: String? = null,
   val bio: String? = null,
-  val city: String? = null,
+  @Json(name = "location") val city: String? = null,
   val country: String? = null,
   val phone: String? = null,
   @Json(name = "created_at") val createdAt: String? = null,
