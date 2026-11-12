@@ -529,7 +529,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     if (userId.isBlank()) return@withContext emptyList()
     try {
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tours?owner_id=eq.$userId&order=created_at.desc")
+        .url("$baseUrl/rest/v1/tours?creator_id=eq.$userId&order=created_at.desc")
         .get()
         .build()
       val resp = okHttpClient.newCall(req).execute()
@@ -581,10 +581,11 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
 
       val payload = JSONObject().apply {
         put("title", title)
-        put("owner_id", userId)
-        put("visibility", "private") // Default is PRIVATE per requirement 8
-        put("status", "planning")
-        if (!destinationId.isNullOrBlank()) put("destination_id", destinationId)
+        put("creator_id", userId)
+        put("is_public", false) // Tours are private by default.
+        put("status", "upcoming")
+        val destinationName = destinationId?.let { getDestinationById(it)?.name } ?: destinationId
+        if (!destinationName.isNullOrBlank()) put("destination", destinationName)
         if (!startDate.isNullOrBlank()) put("start_date", startDate)
         if (!endDate.isNullOrBlank()) put("end_date", endDate)
         if (maxMembers != null) put("max_members", maxMembers)
@@ -612,7 +613,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
 
       // Add owner as a tour member
       runCatching {
-        addTourMember(created.id, userId, role = "owner")
+        addTourMember(created.id, userId, role = "creator")
       }
 
       Result.success(created)
@@ -689,8 +690,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
       val payload = JSONObject().apply {
         put("tour_id", tourId)
         put("user_id", userId)
-        put("role", role)
-        put("status", "active")
+        put("role", if (role == "owner") "creator" else role)
       }
       val req = Request.Builder()
         .url("$baseUrl/rest/v1/tour_members")
@@ -775,7 +775,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     if (tourId.isBlank()) return@withContext emptyList()
     try {
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tour_itinerary?tour_id=eq.$tourId&select=*&order=day_number.asc")
+        .url("$baseUrl/rest/v1/tour_itinerary_items?tour_id=eq.$tourId&select=*&order=day_date.asc,sort_order.asc")
         .get()
         .build()
       val resp = okHttpClient.newCall(req).execute()
