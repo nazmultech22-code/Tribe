@@ -29,7 +29,9 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
 
   private val okHttpClient = OkHttpClient.Builder()
     .connectTimeout(20, TimeUnit.SECONDS)
-    .readTimeout(20, TimeUnit.SECONDS)
+    .readTimeout(30, TimeUnit.SECONDS)
+    .writeTimeout(60, TimeUnit.SECONDS)
+    .callTimeout(90, TimeUnit.SECONDS)
     .addInterceptor(HttpLoggingInterceptor().apply {
       level = HttpLoggingInterceptor.Level.BASIC
     })

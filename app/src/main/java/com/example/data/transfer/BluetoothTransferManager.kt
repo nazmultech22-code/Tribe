@@ -220,6 +220,7 @@ class BluetoothTransferManager(private val context: Context) {
           }
           output.writeInt(-1)
           output.flush()
+          if (input.readInt() != 1) throw IOException("Receiver could not finalize the file")
         }
       }
       Result.success(Unit)
@@ -300,6 +301,8 @@ class BluetoothTransferManager(private val context: Context) {
           val encryptedFile = File(receivedDir, transferId + ".tribe")
           EncryptedReceivedFileStore.encrypt(partialFile, encryptedFile)
           partialFile.delete()
+          output.writeInt(1)
+          output.flush()
           Result.success(ReceivedTransfer(safeName, mimeType, encryptedFile, totalBytes))
         }
       }

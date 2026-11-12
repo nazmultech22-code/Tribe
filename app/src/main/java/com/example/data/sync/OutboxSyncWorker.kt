@@ -138,7 +138,7 @@ class OutboxSyncWorker(
         }
       }
 
-      val baseUrl = BuildConfig.SUPABASE_URL.trimEnd("/")
+      val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
       val filter = when {
         operation.operationType.equals("create", true) -> ""
         operation.tableName == "tour_guest_attendance" && tourId != null ->

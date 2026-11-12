@@ -1244,27 +1244,33 @@ fun TourDetailScreen(
                       val result = repository.supabaseClient.setTourAttendance(tourId, choice)
                       if (result.isSuccess) {
                         attendance = repository.supabaseClient.getTourAttendance(tourId)
-                      } else if (result.exceptionOrNull() is IOException && sessionState.userId != null) {
-                        val currentAttendance = attendance.firstOrNull { it.userId == sessionState.userId }
-                        val payload = JSONObject().apply {
-                          put("tour_id", tourId)
-                          put("user_id", sessionState.userId)
-                          put("response", choice)
-                          if (currentAttendance?.updatedAt != null) put("_base_revision", currentAttendance.updatedAt)
+                      } else {
+                        val currentUserId = sessionState.userId
+                        if (result.exceptionOrNull() is IOException && currentUserId != null) {
+                          val currentAttendance = attendance.firstOrNull { it.userId == currentUserId }
+                          val payload = JSONObject().apply {
+                            put("tour_id", tourId)
+                            put("user_id", currentUserId)
+                            put("response", choice)
+                            if (currentAttendance?.updatedAt != null) put("_base_revision", currentAttendance.updatedAt)
+                          }
+                          val queued = repository.enqueueSyncOperation(
+                            if (currentAttendance == null) "create" else "update",
+                            "tour_attendance",
+                            currentUserId,
+                            payload.toString(),
+                            tourId = tourId
+                          )
+                          if (queued) {
+                            attendance = attendance.filterNot { it.userId == currentUserId } +
+                              TourAttendance(tourId, currentUserId, choice)
+                            snackbarMessage = if (lang == AppLanguage.BANGLA) "আপনার উপস্থিতি অফলাইনে সংরক্ষিত" else "Attendance queued offline"
+                          }
                         }
-                        val queued = repository.enqueueSyncOperation(
-                          if (currentAttendance == null) "create" else "update",
-                          "tour_attendance",
-                          sessionState.userId,
-                          payload.toString(),
-                          tourId = tourId
-                        )
-                        if (queued) {
-                          attendance = attendance.filterNot { it.userId == sessionState.userId } +
-                            TourAttendance(tourId, sessionState.userId, choice)
-                          snackbarMessage = if (lang == AppLanguage.BANGLA) "আপনার উপস্থিতি অফলাইনে সংরক্ষিত" else "Attendance queued offline"
+                        if (result.exceptionOrNull() !is IOException || currentUserId == null) {
+                          snackbarMessage = result.exceptionOrNull()?.message
                         }
-                      } else snackbarMessage = result.exceptionOrNull()?.message
+                      }
                     }
                   },
                   label = { Text(when (choice) {
