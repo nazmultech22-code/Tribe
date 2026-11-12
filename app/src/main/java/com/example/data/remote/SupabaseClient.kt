@@ -586,10 +586,10 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         put("status", "upcoming")
         val destinationName = destinationId?.let { getDestinationById(it)?.name } ?: destinationId
         if (!destinationName.isNullOrBlank()) put("destination", destinationName)
+        else put("destination", "Unknown destination")
         if (!startDate.isNullOrBlank()) put("start_date", startDate)
         if (!endDate.isNullOrBlank()) put("end_date", endDate)
         if (maxMembers != null) put("max_members", maxMembers)
-        if (!meetingPoint.isNullOrBlank()) put("meeting_point", meetingPoint)
         if (!description.isNullOrBlank()) put("description", description)
       }
 
@@ -740,7 +740,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         put("amount", amount)
         put("category", category)
         if (!userId.isNullOrEmpty()) put("paid_by", userId)
-        if (!description.isNullOrBlank()) put("description", description)
+        if (!description.isNullOrBlank()) put("notes", description)
       }
 
       val req = Request.Builder()
@@ -796,16 +796,23 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     location: String?
   ): Result<TourItineraryItem> = withContext(Dispatchers.IO) {
     try {
+      val userId = sessionManager.sessionState.value.userId
+        ?: return@withContext Result.failure(Exception("User not authenticated"))
+      val tour = getTourById(tourId)
+        ?: return@withContext Result.failure(Exception("Tour not found"))
+      val dayDate = java.time.LocalDate.parse(tour.startDate).plusDays((dayNumber - 1).coerceAtLeast(0).toLong()).toString()
       val payload = JSONObject().apply {
         put("tour_id", tourId)
-        put("day_number", dayNumber)
+        put("day_date", dayDate)
+        put("sort_order", 0)
         put("title", title)
-        if (!description.isNullOrBlank()) put("description", description)
+        put("created_by", userId)
+        if (!description.isNullOrBlank()) put("details", description)
         if (!location.isNullOrBlank()) put("location", location)
       }
 
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tour_itinerary")
+        .url("$baseUrl/rest/v1/tour_itinerary_items")
         .header("Prefer", "return=representation")
         .post(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
@@ -832,7 +839,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     if (tourId.isBlank()) return@withContext emptyList()
     try {
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tour_checklists?tour_id=eq.$tourId&select=*&order=created_at.asc")
+        .url("$baseUrl/rest/v1/tour_tasks?tour_id=eq.$tourId&select=*&order=created_at.asc")
         .get()
         .build()
       val resp = okHttpClient.newCall(req).execute()
@@ -850,11 +857,12 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
       val payload = JSONObject().apply {
         put("tour_id", tourId)
         put("title", title)
-        put("is_completed", false)
+        put("created_by", sessionManager.sessionState.value.userId ?: return@withContext Result.failure(Exception("User not authenticated")))
+        put("status", "todo")
       }
 
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/tour_checklists")
+        .url("$baseUrl/rest/v1/tour_tasks")
         .header("Prefer", "return=representation")
         .post(payload.toString().toRequestBody("application/json".toMediaType()))
         .build()
@@ -875,7 +883,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
   suspend fun toggleChecklistItem(itemId: String, isCompleted: Boolean): Result<Boolean> = withContext(Dispatchers.IO) {
     try {
       val payload = JSONObject().apply {
-        put("is_completed", isCompleted)
+        put("status", if (isCompleted) "done" else "todo")
       }
       val req = Request.Builder()
         .url("$baseUrl/rest/v1/tour_checklists?id=eq.$itemId")
