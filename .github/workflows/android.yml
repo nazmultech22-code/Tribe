@@ -28,7 +28,7 @@ jobs:
           gradle-version: '9.3.1'
 
       - name: Validate and build debug APK
-        run: gradle --no-daemon testDebugUnitTest assembleDebug
+        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
