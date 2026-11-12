@@ -20,8 +20,8 @@ import java.util.concurrent.TimeUnit
 
 class SupabaseClient(private val sessionManager: UserSessionManager) {
 
-  private val baseUrl = (BuildConfig.SUPABASE_URL.ifBlank { "https://cididsanututlefebehw.supabase.co" }).trimEnd('/')
-  private val apiKey = BuildConfig.SUPABASE_ANON_KEY.ifBlank { "sb_publishable_6DaFN--g0nkh6E3s_eHzBw_WEnMAnVK" }
+  private val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
+  private val apiKey = BuildConfig.SUPABASE_ANON_KEY
 
   private val moshi = Moshi.Builder()
     .addLast(KotlinJsonAdapterFactory())
@@ -31,7 +31,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     .connectTimeout(20, TimeUnit.SECONDS)
     .readTimeout(20, TimeUnit.SECONDS)
     .addInterceptor(HttpLoggingInterceptor().apply {
-      level = HttpLoggingInterceptor.Level.BODY
+      level = HttpLoggingInterceptor.Level.BASIC
     })
     .addInterceptor { chain ->
       val original = chain.request()
