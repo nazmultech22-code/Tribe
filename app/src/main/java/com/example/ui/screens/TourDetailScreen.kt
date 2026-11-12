@@ -30,6 +30,12 @@ import com.example.ui.components.StatusBadge
 import com.example.ui.components.TribeHeader
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.io.IOException
+import java.util.UUID
+import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 fun TourDetailScreen(
@@ -735,7 +741,14 @@ fun TourDetailScreen(
                   checked = item.isCompleted,
                   onCheckedChange = { checked ->
                     scope.launch {
-                      repository.supabaseClient.toggleChecklistItem(item.id, checked)
+                      val result = repository.supabaseClient.toggleChecklistItem(item.id, checked)
+                      if (!result.isSuccess && result.exceptionOrNull() is IOException) {
+                        val queued = repository.enqueueSyncOperation(
+                          "update", "tour_tasks", item.id,
+                          JSONObject().put("status", if (checked) "done" else "todo").toString()
+                        )
+                        if (queued) snackbarMessage = if (lang == AppLanguage.BANGLA) "পরিবর্তনটি অফলাইনে সংরক্ষিত; পরে Sync হবে" else "Change saved offline and queued to sync"
+                      }
                       checklists = checklists.map { if (it.id == item.id) it.copy(status = if (checked) "done" else "todo") else it }
                     }
                   }
@@ -863,10 +876,35 @@ fun TourDetailScreen(
               onClick = {
                 if (newCommentText.isNotBlank()) {
                   scope.launch {
-                    val res = repository.supabaseClient.postTourComment(tourId, newCommentText.trim())
+                    val messageText = newCommentText.trim()
+                    val res = repository.supabaseClient.postTourComment(tourId, messageText)
                     if (res.isSuccess) {
                       comments = repository.supabaseClient.getTourComments(tourId)
                       newCommentText = ""
+                    } else if (res.exceptionOrNull() is IOException && sessionState.userId != null) {
+                      val messageId = UUID.randomUUID().toString()
+                      val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date())
+                      val payload = JSONObject().apply {
+                        put("id", messageId)
+                        put("tour_id", tourId)
+                        put("sender_id", sessionState.userId)
+                        put("content_type", "text")
+                        put("body", messageText)
+                        put("client_created_at", timestamp)
+                      }
+                      val queued = repository.enqueueSyncOperation("create", "tour_messages", messageId, payload.toString())
+                      if (queued) {
+                        comments = comments + TourComment(
+                          id = messageId,
+                          tourId = tourId,
+                          userId = sessionState.userId!!,
+                          body = messageText,
+                          createdAt = timestamp,
+                          clientCreatedAt = timestamp
+                        )
+                        newCommentText = ""
+                        snackbarMessage = if (lang == AppLanguage.BANGLA) "মন্তব্যটি অফলাইনে রাখা হয়েছে; সংযোগ ফিরলে Sync হবে" else "Comment queued offline and will sync when online"
+                      }
                     }
                   }
                 }

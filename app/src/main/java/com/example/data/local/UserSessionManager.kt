@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class SessionState(
   val isLoggedIn: Boolean = false,
   val accessToken: String? = null,
+  val refreshToken: String? = null,
   val userId: String? = null,
   val email: String? = null,
   val fullName: String? = null,
@@ -27,6 +28,7 @@ class UserSessionManager(context: Context) {
 
   private fun loadInitialState(): SessionState {
     val token = prefs.getString("access_token", null)
+    val refreshToken = prefs.getString("refresh_token", null)
     val userId = prefs.getString("user_id", null)
     val email = prefs.getString("email", null)
     val fullName = prefs.getString("full_name", null)
@@ -38,6 +40,7 @@ class UserSessionManager(context: Context) {
     return SessionState(
       isLoggedIn = !token.isNullOrEmpty() && !userId.isNullOrEmpty(),
       accessToken = token,
+      refreshToken = refreshToken,
       userId = userId,
       email = email,
       fullName = fullName,
@@ -52,10 +55,12 @@ class UserSessionManager(context: Context) {
     userId: String,
     email: String,
     fullName: String? = null,
-    username: String? = null
+    username: String? = null,
+    refreshToken: String? = null
   ) {
     prefs.edit()
       .putString("access_token", token)
+      .putString("refresh_token", refreshToken ?: prefs.getString("refresh_token", null))
       .putString("user_id", userId)
       .putString("email", email)
       .putString("full_name", fullName)
@@ -65,6 +70,7 @@ class UserSessionManager(context: Context) {
     _sessionState.value = _sessionState.value.copy(
       isLoggedIn = true,
       accessToken = token,
+      refreshToken = refreshToken ?: _sessionState.value.refreshToken,
       userId = userId,
       email = email,
       fullName = fullName ?: _sessionState.value.fullName,
@@ -95,6 +101,7 @@ class UserSessionManager(context: Context) {
     val currentLang = _sessionState.value.language
     prefs.edit()
       .remove("access_token")
+      .remove("refresh_token")
       .remove("user_id")
       .remove("email")
       .remove("full_name")
@@ -105,6 +112,7 @@ class UserSessionManager(context: Context) {
     _sessionState.value = SessionState(
       isLoggedIn = false,
       accessToken = null,
+      refreshToken = null,
       userId = null,
       email = null,
       fullName = null,

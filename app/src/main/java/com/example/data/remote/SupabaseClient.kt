@@ -98,7 +98,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
       val userId = userObj?.optString("id") ?: ""
 
       if (accessToken.isNotEmpty() && userId.isNotEmpty()) {
-        sessionManager.saveSession(accessToken, userId, email, fullName, username)
+        sessionManager.saveSession(accessToken, userId, email, fullName, username, resObj.optString("refresh_token").takeIf { it.isNotBlank() })
         // ensure profile record
         createOrUpdateProfile(userId, fullName, username, email)
         Result.success("Success")
@@ -144,7 +144,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
       val fullName = userMeta?.optString("full_name", "") ?: ""
       val username = userMeta?.optString("username", "") ?: ""
 
-      sessionManager.saveSession(token, userId, email, fullName, username)
+      sessionManager.saveSession(token, userId, email, fullName, username, resObj.optString("refresh_token").takeIf { it.isNotBlank() })
       Result.success("Signed in")
     } catch (e: Exception) {
       Log.e("SupabaseClient", "signIn error", e)
@@ -188,12 +188,43 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
       if (accessToken.isBlank() || userId.isBlank() || email.isBlank()) {
         return@withContext Result.failure(Exception("Incomplete Supabase session returned by Google sign-in"))
       }
-      sessionManager.saveSession(accessToken, userId, email, fullName, username)
+      sessionManager.saveSession(accessToken, userId, email, fullName, username, session.optString("refresh_token").takeIf { it.isNotBlank() })
       createOrUpdateProfile(userId, fullName, username, email)
       Result.success("Signed in with Google")
     } catch (e: Exception) {
       Log.e("SupabaseClient", "signInWithGoogleIdToken error", e)
       Result.failure(e)
+    }
+  }
+
+
+  suspend fun refreshSession(): Boolean = withContext(Dispatchers.IO) {
+    val refreshToken = sessionManager.sessionState.value.refreshToken
+      ?: return@withContext false
+    try {
+      val payload = JSONObject().put("refresh_token", refreshToken)
+      val req = Request.Builder()
+        .url("$baseUrl/auth/v1/token?grant_type=refresh_token")
+        .post(payload.toString().toRequestBody("application/json".toMediaType()))
+        .build()
+      val response = okHttpClient.newCall(req).execute()
+      val body = response.body?.string() ?: ""
+      if (!response.isSuccessful) return@withContext false
+      val session = JSONObject(body)
+      val user = session.optJSONObject("user") ?: JSONObject()
+      val token = session.optString("access_token")
+      val nextRefreshToken = session.optString("refresh_token").ifBlank { refreshToken }
+      val userId = user.optString("id").ifBlank { sessionManager.sessionState.value.userId.orEmpty() }
+      val email = user.optString("email").ifBlank { sessionManager.sessionState.value.email.orEmpty() }
+      val metadata = user.optJSONObject("user_metadata") ?: JSONObject()
+      val fullName = metadata.optString("full_name").ifBlank { sessionManager.sessionState.value.fullName.orEmpty() }
+      val username = metadata.optString("username").ifBlank { sessionManager.sessionState.value.username.orEmpty() }
+      if (token.isBlank() || userId.isBlank() || email.isBlank()) return@withContext false
+      sessionManager.saveSession(token, userId, email, fullName, username, nextRefreshToken)
+      true
+    } catch (e: Exception) {
+      Log.w("SupabaseClient", "Session refresh failed", e)
+      false
     }
   }
 

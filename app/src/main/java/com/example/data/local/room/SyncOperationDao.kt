@@ -26,6 +26,16 @@ interface SyncOperationDao {
   @Query("UPDATE sync_operations SET state = 'pending', last_error = :error WHERE id = :id")
   suspend fun retry(id: String, error: String?)
 
+
+  @Query("UPDATE sync_operations SET state = 'failed', attemptCount = attemptCount + 1, last_error = :error WHERE id = :id")
+  suspend fun markFailed(id: String, error: String?)
+
+  @Query("UPDATE sync_operations SET state = 'pending', attemptCount = 0, last_error = NULL WHERE state = 'failed'")
+  suspend fun retryFailed(): Int
+
+  @Query("SELECT COUNT(*) FROM sync_operations WHERE state = 'failed'")
+  fun observeFailedCount(): Flow<Int>
+
   @Query("DELETE FROM sync_operations WHERE state = 'completed' AND createdAt < :olderThan")
   suspend fun pruneCompleted(olderThan: Long): Int
 }

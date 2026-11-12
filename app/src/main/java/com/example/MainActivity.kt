@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Destination
 import com.example.data.repository.TribeRepository
+import com.example.data.sync.SyncScheduler
 import com.example.i18n.AppLanguage
 import com.example.i18n.L10n
 import com.example.ui.screens.*
@@ -52,6 +53,7 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
+    SyncScheduler.schedulePeriodic(applicationContext)
     val repository = TribeRepository.getInstance(applicationContext)
 
     setContent {

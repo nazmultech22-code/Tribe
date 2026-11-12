@@ -4,17 +4,64 @@ import android.content.Context
 import android.util.Log
 import com.example.data.local.SessionState
 import com.example.data.local.UserSessionManager
+import com.example.data.local.room.SyncOperationEntity
+import com.example.data.local.room.SyncOperationDao
+import com.example.data.local.room.TribeRoomDatabase
+import com.example.data.sync.SyncScheduler
 import com.example.data.model.*
 import com.example.data.remote.SupabaseClient
 import com.example.i18n.AppLanguage
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
 class TribeRepository(
   private val sessionManager: UserSessionManager,
-  val supabaseClient: SupabaseClient
+  val supabaseClient: SupabaseClient,
+  private val appContext: Context,
+  private val syncOperationDao: SyncOperationDao
 ) {
 
   val sessionState: StateFlow<SessionState> = sessionManager.sessionState
+
+
+  suspend fun enqueueSyncOperation(
+    operationType: String,
+    tableName: String,
+    recordId: String,
+    payloadJson: String
+  ): Boolean {
+    val allowedTables = setOf(
+      "tours", "tour_members", "tour_itinerary_items", "tour_tasks",
+      "tour_messages", "tour_expenses", "tour_join_requests",
+      "saved_tours", "tour_attendance", "tour_guest_members"
+    )
+    if (tableName !in allowedTables || operationType.lowercase() !in setOf("create", "update", "delete")) {
+      return false
+    }
+    val inserted = syncOperationDao.enqueue(
+      SyncOperationEntity(
+        id = UUID.randomUUID().toString(),
+        operationType = operationType.lowercase(),
+        tableName = tableName,
+        recordId = recordId,
+        payloadJson = payloadJson,
+        createdAt = System.currentTimeMillis()
+      )
+    )
+    if (inserted >= 0L) SyncScheduler.enqueueNow(appContext)
+    return inserted >= 0L
+  }
+
+  fun observePendingSyncCount(): Flow<Int> = syncOperationDao.observePendingCount()
+
+  fun observeFailedSyncCount(): Flow<Int> = syncOperationDao.observeFailedCount()
+
+  suspend fun retryFailedSyncOperations(): Int {
+    val count = syncOperationDao.retryFailed()
+    if (count > 0) SyncScheduler.enqueueNow(appContext)
+    return count
+  }
 
   fun setLanguage(language: AppLanguage) {
     sessionManager.setLanguage(language)
@@ -183,8 +230,9 @@ class TribeRepository(
     fun getInstance(context: Context): TribeRepository {
       return INSTANCE ?: synchronized(this) {
         val sessionMgr = UserSessionManager.getInstance(context)
+        val database = TribeRoomDatabase.getDatabase(context)
         val client = SupabaseClient(sessionMgr)
-        INSTANCE ?: TribeRepository(sessionMgr, client).also { INSTANCE = it }
+        INSTANCE ?: TribeRepository(sessionMgr, client, context.applicationContext, database.syncOperationDao()).also { INSTANCE = it }
       }
     }
   }

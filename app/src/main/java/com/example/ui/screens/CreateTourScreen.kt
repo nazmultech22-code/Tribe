@@ -25,6 +25,9 @@ import com.example.i18n.AppLanguage
 import com.example.i18n.L10n
 import com.example.ui.components.TribeHeader
 import com.example.ui.theme.TribeGreenPrimary
+import org.json.JSONObject
+import java.io.IOException
+import java.util.UUID
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -322,7 +325,30 @@ fun CreateTourScreen(
             if (res.isSuccess) {
               onTourCreated(res.getOrThrow())
             } else {
-              errorMessage = res.exceptionOrNull()?.message ?: L10n.errorOccurred(lang)
+              val cause = res.exceptionOrNull()
+              if (cause is IOException && sessionState.userId != null) {
+                val offlineId = UUID.randomUUID().toString()
+                val offlinePayload = JSONObject().apply {
+                  put("id", offlineId)
+                  put("title", title.trim())
+                  put("creator_id", sessionState.userId)
+                  put("destination", selectedDestination?.name ?: "Unknown destination")
+                  put("is_public", false)
+                  put("status", "upcoming")
+                  put("max_members", maxMembers.toIntOrNull() ?: 5)
+                  if (startDate.isNotBlank()) put("start_date", startDate.trim())
+                  if (endDate.isNotBlank()) put("end_date", endDate.trim())
+                  if (description.isNotBlank()) put("description", description.trim())
+                }
+                val queued = repository.enqueueSyncOperation("create", "tours", offlineId, offlinePayload.toString())
+                errorMessage = if (queued) {
+                  if (lang == AppLanguage.BANGLA) "ইন্টারনেট নেই। ট্যুরটি Sync Queue-তে রাখা হয়েছে; সংযোগ ফিরলে স্বয়ংক্রিয়ভাবে Sync হবে।" else "You're offline. The tour is queued and will sync automatically when the connection returns."
+                } else {
+                  cause.localizedMessage ?: L10n.errorOccurred(lang)
+                }
+              } else {
+                errorMessage = cause?.localizedMessage ?: L10n.errorOccurred(lang)
+              }
             }
           }
         },
