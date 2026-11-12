@@ -21,6 +21,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.example.BuildConfig
@@ -373,6 +374,8 @@ fun AuthScreen(
                 } else {
                   errorMessage = if (lang == AppLanguage.BANGLA) "Google অ্যাকাউন্ট পাওয়া যায়নি" else "Google account was not returned"
                 }
+              } catch (e: NoCredentialException) {
+                errorMessage = if (lang == AppLanguage.BANGLA) "এই ডিভাইসে কোনো Google অ্যাকাউন্ট পাওয়া যায়নি" else "No Google account is available on this device"
               } catch (e: GetCredentialException) {
                 errorMessage = e.localizedMessage ?: if (lang == AppLanguage.BANGLA) "Google সাইন-ইন বাতিল বা ব্যর্থ হয়েছে" else "Google sign-in was cancelled or failed"
               } catch (e: Exception) {

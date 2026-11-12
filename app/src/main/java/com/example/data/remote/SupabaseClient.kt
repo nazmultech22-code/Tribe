@@ -173,7 +173,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         val message = err?.optString("msg")?.takeIf { it.isNotBlank() }
           ?: err?.optString("message")?.takeIf { it.isNotBlank() }
           ?: err?.optString("error_description")?.takeIf { it.isNotBlank() }
-          ?: "Google sign-in failed (\${resp.code})"
+          ?: "Google sign-in failed (${resp.code})"
         return@withContext Result.failure(Exception(message))
       }
       val session = JSONObject(body)
