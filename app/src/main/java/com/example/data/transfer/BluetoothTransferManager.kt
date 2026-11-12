@@ -140,7 +140,13 @@ class BluetoothTransferManager(private val context: Context) {
     val currentAdvertiser = advertiser
     val currentCallback = advertiseCallback
     if (currentAdvertiser != null && currentCallback != null) {
-      if (hasAdvertisePermission()) runCatching { currentAdvertiser.stopAdvertising(currentCallback) }
+      if (hasAdvertisePermission()) {
+        try {
+          currentAdvertiser.stopAdvertising(currentCallback)
+        } catch (e: SecurityException) {
+          Log.w(TAG, "Bluetooth advertise permission was revoked", e)
+        }
+      }
     }
     advertiser = null
     advertiseCallback = null
@@ -184,7 +190,13 @@ class BluetoothTransferManager(private val context: Context) {
     val currentScanner = scanner
     val currentCallback = scanCallback
     if (currentScanner != null && currentCallback != null && scanning.getAndSet(false)) {
-      if (hasScanPermission()) runCatching { currentScanner.stopScan(currentCallback) }
+      if (hasScanPermission()) {
+        try {
+          currentScanner.stopScan(currentCallback)
+        } catch (e: SecurityException) {
+          Log.w(TAG, "Bluetooth scan permission was revoked", e)
+        }
+      }
     }
     scanner = null
     scanCallback = null
@@ -202,7 +214,12 @@ class BluetoothTransferManager(private val context: Context) {
     }
     if (!hasConnectPermission()) return@withContext Result.failure(SecurityException("Bluetooth connect permission is required"))
     if (adapter?.isEnabled != true) return@withContext Result.failure(IOException("Bluetooth is turned off"))
-    if (device.bondState != BluetoothDevice.BOND_BONDED) {
+    val isBonded = try {
+      device.bondState == BluetoothDevice.BOND_BONDED
+    } catch (e: SecurityException) {
+      return@withContext Result.failure(e)
+    }
+    if (!isBonded) {
       return@withContext Result.failure(IOException("Pair both phones in Android Bluetooth settings before sending"))
     }
 
@@ -335,6 +352,9 @@ class BluetoothTransferManager(private val context: Context) {
           Result.success(ReceivedTransfer(safeName, mimeType, encryptedFile, totalBytes))
         }
       }
+    } catch (e: SecurityException) {
+      Log.w(TAG, "Bluetooth connect permission was revoked during receive", e)
+      Result.failure(e)
     } catch (e: Exception) {
       Log.e(TAG, "Bluetooth file receive failed", e)
       Result.failure(e)
