@@ -36,6 +36,16 @@ interface SyncOperationDao {
   @Query("SELECT COUNT(*) FROM sync_operations WHERE state = 'failed'")
   fun observeFailedCount(): Flow<Int>
 
+
+  @Query("UPDATE sync_operations SET state = 'conflict', last_error = :reason WHERE id = :id")
+  suspend fun markConflict(id: String, reason: String?)
+
+  @Query("UPDATE sync_operations SET state = :nextState, last_error = NULL WHERE id = :id")
+  suspend fun resolveConflict(id: String, nextState: String)
+
+  @Query("SELECT COUNT(*) FROM sync_operations WHERE state = 'conflict'")
+  fun observeConflictCount(): Flow<Int>
+
   @Query("DELETE FROM sync_operations WHERE state = 'completed' AND createdAt < :olderThan")
   suspend fun pruneCompleted(olderThan: Long): Int
 }

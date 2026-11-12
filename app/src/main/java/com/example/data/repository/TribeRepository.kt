@@ -29,12 +29,14 @@ class TribeRepository(
     operationType: String,
     tableName: String,
     recordId: String,
-    payloadJson: String
+    payloadJson: String,
+    tourId: String? = null
   ): Boolean {
     val allowedTables = setOf(
       "tours", "tour_members", "tour_itinerary_items", "tour_tasks",
       "tour_messages", "tour_expenses", "tour_join_requests",
-      "saved_tours", "tour_attendance", "tour_guest_members"
+      "saved_tours", "tour_attendance", "tour_guest_members",
+      "tour_documents", "tour_images", "tour_member_permissions", "tour_guest_attendance", "rpc_create_tour_expense"
     )
     if (tableName !in allowedTables || operationType.lowercase() !in setOf("create", "update", "delete")) {
       return false
@@ -45,6 +47,7 @@ class TribeRepository(
         operationType = operationType.lowercase(),
         tableName = tableName,
         recordId = recordId,
+        tourId = tourId,
         payloadJson = payloadJson,
         createdAt = System.currentTimeMillis()
       )
@@ -56,6 +59,13 @@ class TribeRepository(
   fun observePendingSyncCount(): Flow<Int> = syncOperationDao.observePendingCount()
 
   fun observeFailedSyncCount(): Flow<Int> = syncOperationDao.observeFailedCount()
+
+  fun observeSyncConflictCount(): Flow<Int> = syncOperationDao.observeConflictCount()
+
+  suspend fun resolveLocalSyncConflict(operationId: String, keepLocal: Boolean) {
+    syncOperationDao.resolveConflict(operationId, if (keepLocal) "pending" else "completed")
+    if (keepLocal) SyncScheduler.enqueueNow(appContext)
+  }
 
   suspend fun retryFailedSyncOperations(): Int {
     val count = syncOperationDao.retryFailed()
@@ -100,12 +110,11 @@ class TribeRepository(
   }
 
   /**
-   * Destination catalog tables are not part of the currently connected Supabase schema.
-   * The app uses the bundled DEFAULT_POPULAR_DESTINATIONS list as its safe fallback.
-   * Avoid trying to seed a missing remote table on every launch.
+   * The remote catalog is additive; bundled destinations remain the offline fallback.
+   * Curated destination records are managed separately rather than seeded by every user.
    */
   suspend fun initializeAndSeedIfNeeded() {
-    // Intentionally no-op until destination catalog tables and their RLS policies are added.
+    // No automatic user-owned seed rows are created on sign-in.
   }
 
 

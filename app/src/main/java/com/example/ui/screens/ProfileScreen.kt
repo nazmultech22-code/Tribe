@@ -39,6 +39,10 @@ fun ProfileScreen(
   val scope = rememberCoroutineScope()
 
   var profile by remember { mutableStateOf<UserProfile?>(null) }
+  var notifications by remember { mutableStateOf<List<com.example.data.model.AppNotification>>(emptyList()) }
+  val pendingSyncCount by repository.observePendingSyncCount().collectAsState(initial = 0)
+  val failedSyncCount by repository.observeFailedSyncCount().collectAsState(initial = 0)
+  val conflictSyncCount by repository.observeSyncConflictCount().collectAsState(initial = 0)
   var isLoading by remember { mutableStateOf(false) }
   var showEditDialog by remember { mutableStateOf(false) }
   var showSignOutDialog by remember { mutableStateOf(false) }
@@ -58,6 +62,7 @@ fun ProfileScreen(
       isLoading = true
       val p = repository.supabaseClient.getProfile(uid)
       profile = p
+      notifications = repository.supabaseClient.getNotifications(uid)
       if (p != null) {
         editFullName = p.fullName ?: ""
         editUsername = p.username ?: ""
@@ -223,6 +228,94 @@ fun ProfileScreen(
       }
 
       Spacer(modifier = Modifier.height(12.dp))
+
+
+      if (sessionState.isLoggedIn) {
+        Spacer(modifier = Modifier.height(12.dp))
+        ElevatedCard(
+          shape = RoundedCornerShape(16.dp),
+          colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Icon(Icons.Default.Notifications, contentDescription = null, tint = TribeGreenPrimary)
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = if (lang == AppLanguage.BANGLA) "নোটিফিকেশন" else "Notifications",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+              )
+              Spacer(modifier = Modifier.weight(1f))
+              Text(notifications.count { !it.isRead }.toString(), color = TribeGreenPrimary, fontWeight = FontWeight.Bold)
+            }
+            if (notifications.isEmpty()) {
+              Text(
+                text = if (lang == AppLanguage.BANGLA) "নতুন কোনো নোটিফিকেশন নেই" else "No notifications yet",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            } else {
+              notifications.take(5).forEach { notification ->
+                Row(
+                  modifier = Modifier.fillMaxWidth().clickable {
+                    if (!notification.isRead) {
+                      scope.launch {
+                        val result = repository.supabaseClient.markNotificationRead(notification.id)
+                        if (result.isSuccess) notifications = notifications.map {
+                          if (it.id == notification.id) it.copy(readAt = "read") else it
+                        }
+                      }
+                    }
+                  }.padding(vertical = 8.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(
+                    if (notification.isRead) Icons.Default.Drafts else Icons.Default.MarkEmailUnread,
+                    contentDescription = null,
+                    tint = if (notification.isRead) MaterialTheme.colorScheme.outline else TribeGreenPrimary
+                  )
+                  Spacer(modifier = Modifier.width(10.dp))
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(notification.title, fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.SemiBold)
+                    if (!notification.body.isNullOrBlank()) Text(notification.body, style = MaterialTheme.typography.bodySmall)
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (pendingSyncCount > 0 || failedSyncCount > 0 || conflictSyncCount > 0) {
+          Spacer(modifier = Modifier.height(12.dp))
+          ElevatedCard(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.CloudSync, contentDescription = null, tint = TribeGreenPrimary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                  text = if (lang == AppLanguage.BANGLA) "অফলাইন Sync" else "Offline sync",
+                  style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                )
+              }
+              Text(
+                text = (if (lang == AppLanguage.BANGLA) "অপেক্ষমাণ: " else "Pending: ") + pendingSyncCount +
+                  (if (lang == AppLanguage.BANGLA) " • ব্যর্থ: " else " • Failed: ") + failedSyncCount +
+                  (if (lang == AppLanguage.BANGLA) " • দ্বন্দ্ব: " else " • Conflicts: ") + conflictSyncCount,
+                style = MaterialTheme.typography.bodySmall
+              )
+              if (failedSyncCount > 0) {
+                OutlinedButton(onClick = { scope.launch { repository.retryFailedSyncOperations() } }) {
+                  Text(if (lang == AppLanguage.BANGLA) "ব্যর্থ Sync আবার চেষ্টা করুন" else "Retry failed sync")
+                }
+              }
+            }
+          }
+        }
+      }
 
       // Google Sign-In Info Item
       ElevatedCard(

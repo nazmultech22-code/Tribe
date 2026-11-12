@@ -11,6 +11,7 @@ data class SyncOperationEntity(
   val operationType: String,
   val tableName: String,
   val recordId: String,
+  @ColumnInfo(name = "tour_id") val tourId: String? = null,
   @ColumnInfo(name = "payload_json") val payloadJson: String,
   val createdAt: Long,
   @ColumnInfo(defaultValue = "0") val attemptCount: Int = 0,

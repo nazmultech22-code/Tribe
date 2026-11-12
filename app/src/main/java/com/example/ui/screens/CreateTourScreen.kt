@@ -340,7 +340,7 @@ fun CreateTourScreen(
                   if (endDate.isNotBlank()) put("end_date", endDate.trim())
                   if (description.isNotBlank()) put("description", description.trim())
                 }
-                val queued = repository.enqueueSyncOperation("create", "tours", offlineId, offlinePayload.toString())
+                val queued = repository.enqueueSyncOperation("create", "tours", offlineId, offlinePayload.toString(), tourId = offlineId)
                 errorMessage = if (queued) {
                   if (lang == AppLanguage.BANGLA) "ইন্টারনেট নেই। ট্যুরটি Sync Queue-তে রাখা হয়েছে; সংযোগ ফিরলে স্বয়ংক্রিয়ভাবে Sync হবে।" else "You're offline. The tour is queued and will sync automatically when the connection returns."
                 } else {

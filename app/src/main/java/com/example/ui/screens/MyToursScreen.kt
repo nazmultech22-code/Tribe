@@ -26,6 +26,7 @@ import com.example.ui.components.TribeHeader
 import com.example.ui.theme.TribeGreenDark
 import com.example.ui.theme.TribeGreenPrimary
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 @Composable
 fun MyToursScreen(
@@ -42,6 +43,9 @@ fun MyToursScreen(
   var tours by remember { mutableStateOf<List<Tour>>(emptyList()) }
   var isLoading by remember { mutableStateOf(true) }
   var selectedTab by remember { mutableIntStateOf(0) }
+  var inviteCode by remember { mutableStateOf("") }
+  var inviteMessage by remember { mutableStateOf<String?>(null) }
+  var isRedeemingInvite by remember { mutableStateOf(false) }
 
   fun fetchTours() {
     val uid = sessionState.userId
@@ -139,6 +143,56 @@ fun MyToursScreen(
         .padding(padding)
         .padding(horizontal = 16.dp)
     ) {
+
+      Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+      ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+          Text(
+            text = if (lang == AppLanguage.BANGLA) "Invite Code দিয়ে ট্যুরে যোগ দিন" else "Join a tour with an invite code",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+          )
+          OutlinedTextField(
+            value = inviteCode,
+            onValueChange = { inviteCode = it.trim() },
+            label = { Text(if (lang == AppLanguage.BANGLA) "৬৪ অক্ষরের Invite Code" else "64-character invite code") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+          )
+          Button(
+            enabled = inviteCode.length == 64 && !isRedeemingInvite,
+            onClick = {
+              scope.launch {
+                isRedeemingInvite = true
+                inviteMessage = null
+                val result = repository.supabaseClient.redeemTourInvite(inviteCode)
+                isRedeemingInvite = false
+                if (result.isSuccess) {
+                  val response = JSONObject(result.getOrThrow())
+                  inviteMessage = when (response.optString("status")) {
+                    "request_submitted" -> if (lang == AppLanguage.BANGLA) "যোগদানের অনুরোধ পাঠানো হয়েছে" else "Join request submitted"
+                    "already_member" -> if (lang == AppLanguage.BANGLA) "আপনি ইতিমধ্যে এই ট্যুরের সদস্য" else "You are already a member"
+                    else -> if (lang == AppLanguage.BANGLA) "Invite সফলভাবে ব্যবহার হয়েছে" else "Invite redeemed successfully"
+                  }
+                  inviteCode = ""
+                  fetchTours()
+                } else {
+                  inviteMessage = result.exceptionOrNull()?.message ?: L10n.errorOccurred(lang)
+                }
+              }
+            },
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Text(if (isRedeemingInvite) "…" else if (lang == AppLanguage.BANGLA) "Invite ব্যবহার করুন" else "Redeem invite")
+          }
+          if (inviteMessage != null) {
+            Text(inviteMessage!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+          }
+        }
+      }
+
       // Room Saved Trips shortcut banner
       Card(
         onClick = onNavigateToSavedTrips,

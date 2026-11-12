@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [SavedTripEntity::class, SyncOperationEntity::class], version = 2, exportSchema = false)
+@Database(entities = [SavedTripEntity::class, SyncOperationEntity::class], version = 3, exportSchema = false)
 abstract class TribeRoomDatabase : RoomDatabase() {
 
   abstract fun savedTripDao(): SavedTripDao
@@ -33,6 +33,12 @@ abstract class TribeRoomDatabase : RoomDatabase() {
         db.execSQL("CREATE INDEX IF NOT EXISTS index_sync_operations_state_createdAt ON sync_operations(state, createdAt)")
       }
     }
+
+    val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE sync_operations ADD COLUMN tour_id TEXT")
+      }
+    }
     @Volatile
     private var INSTANCE: TribeRoomDatabase? = null
 
@@ -43,7 +49,7 @@ abstract class TribeRoomDatabase : RoomDatabase() {
           TribeRoomDatabase::class.java,
           "tribe_saved_trips.db"
         )
-          .addMigrations(MIGRATION_1_2)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
           .build()
         INSTANCE = instance
         instance
