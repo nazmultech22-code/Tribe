@@ -138,7 +138,7 @@ class OutboxSyncWorker(
         }
       }
 
-      val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
+      val baseUrl = BuildConfig.SUPABASE_URL.removeSuffix("/")
       val filter = when {
         operation.operationType.equals("create", true) -> ""
         operation.tableName == "tour_guest_attendance" && tourId != null ->
@@ -153,11 +153,11 @@ class OutboxSyncWorker(
         baseUrl + "/rest/v1/" + operation.tableName + filter
       }
       val builder = Request.Builder()
-        .url(url)
-        .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-        .header("Authorization", "Bearer " + sessionManager.sessionState.value.accessToken)
-        .header("Content-Type", "application/json")
-        .header("Prefer", "resolution=merge-duplicates,return=minimal")
+      builder.url(url)
+      builder.header("apikey", BuildConfig.SUPABASE_ANON_KEY)
+      builder.header("Authorization", "Bearer " + sessionManager.sessionState.value.accessToken)
+      builder.header("Content-Type", "application/json")
+      builder.header("Prefer", "resolution=merge-duplicates,return=minimal")
       val body = payloadJson.toRequestBody("application/json".toMediaType())
       val request = when (operation.operationType.lowercase()) {
         "create" -> builder.post(body).build()
