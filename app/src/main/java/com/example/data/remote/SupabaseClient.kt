@@ -198,7 +198,6 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         put("id", userId)
         if (!fullName.isNullOrEmpty()) put("full_name", fullName)
         if (!username.isNullOrEmpty()) put("username", username)
-        if (!email.isNullOrEmpty()) put("email", email)
       }
       val req = Request.Builder()
         .url("$baseUrl/rest/v1/profiles")
@@ -245,8 +244,8 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
         put("full_name", fullName)
         put("username", username)
         if (bio != null) put("bio", bio)
-        if (city != null) put("city", city)
-        if (country != null) put("country", country)
+        val location = listOfNotNull(city?.takeIf { it.isNotBlank() }, country?.takeIf { it.isNotBlank() }).joinToString(", ")
+        if (location.isNotBlank()) put("location", location)
         if (phone != null) put("phone", phone)
         if (avatarUrl != null) put("avatar_url", avatarUrl)
       }
