@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,17 +32,23 @@ jobs:
       - name: Validate and build debug APK
         run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
 
-      - name: Run Android instrumented tests (API 36)
+      - name: Run Android instrumented tests (API 34)
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
-          target: google_apis
+          api-level: 34
+          target: default
           arch: x86_64
-          profile: pixel_6
+          profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          heap-size: 512M
           disable-animations: true
-          emulator-boot-timeout: 900
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics -wipe-data
-          script: gradle --no-daemon connectedDebugAndroidTest
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          script: |
+            adb wait-for-device
+            adb shell getprop sys.boot_completed
+            gradle --no-daemon connectedDebugAndroidTest
 
       - name: Upload debug APK
         if: always()
