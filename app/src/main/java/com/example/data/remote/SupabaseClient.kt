@@ -483,7 +483,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
     if (destId.isBlank()) return@withContext emptyList()
     try {
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/public_tour_discovery?destination_id=eq.$destId&order=created_at.desc")
+        .url("$baseUrl/rest/v1/tours?destination=eq.$destId&is_public=eq.true&select=id,title,destination,start_date,end_date,status,budget_per_person,created_at&order=created_at.desc")
         .get()
         .build()
       val resp = okHttpClient.newCall(req).execute()
@@ -503,7 +503,7 @@ class SupabaseClient(private val sessionManager: UserSessionManager) {
   suspend fun getAllPublicTours(): List<PublicTourDiscoveryItem> = withContext(Dispatchers.IO) {
     try {
       val req = Request.Builder()
-        .url("$baseUrl/rest/v1/public_tour_discovery?order=created_at.desc&limit=30")
+        .url("$baseUrl/rest/v1/tours?is_public=eq.true&select=id,title,destination,start_date,end_date,status,budget_per_person,created_at&order=created_at.desc&limit=30")
         .get()
         .build()
       val resp = okHttpClient.newCall(req).execute()
